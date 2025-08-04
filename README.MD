@@ -3,7 +3,7 @@
 This project is a high-performance implementation of Conway's Game of Life in Go, featuring:
 
 - Double-buffered board updates for efficiency
-- An "infinite" grid that can grow dynamically during runtime
+- A sparse map-based "infinite" grid that can grow dynamically during runtime
 - A minimal GUI
 - Import/Export RLE support
 - Test suite for common patterns (still lifes, oscillators, spaceships)
