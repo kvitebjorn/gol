@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"gioui.org/app"
+	"gioui.org/io/event"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -19,6 +21,8 @@ import (
 	"gioui.org/x/explorer"
 )
 
+// TODO: memoize layout computations
+
 type C = layout.Context
 type D = layout.Dimensions
 
@@ -27,14 +31,10 @@ var (
 	initialBoard InfiniteGrid // For reset
 )
 
-// For grid memoization (minRow, minCol, maxRow, maxCol, height, width)
-var dimensionCache map[[3]int][6]int = make(map[[3]int][6]int)
-
 func itoa(i int) string {
 	return fmt.Sprintf("%d", i)
 }
 
-// Move button state to package scope so it persists across frames
 var nextButton widget.Clickable
 var resetButton widget.Clickable
 var importButton widget.Clickable
@@ -48,6 +48,49 @@ var fileDialogActive bool
 var playing bool
 var paused bool
 var playStopCh chan struct{}
+
+var (
+	zoomLevel = 1.0 // multiplier on base cell size
+	panX      = 0   // in cells
+	panY      = 0   // in cells
+)
+
+func computeDynamicView(board *InfiniteGrid, gtx layout.Context, zoom float64, panX, panY int) (minRow, minCol, maxRow, maxCol, cellSize, margin, width, height int) {
+	availableWidth := gtx.Constraints.Max.X - 2*gtx.Dp(unit.Dp(10)) // 10px margin on each side
+	availableHeight := gtx.Constraints.Max.Y / 2                    // keep this for UI layout balance
+
+	// Determine desired cell size
+	cellSizeF := zoom * 20 // base size of 20px at 1.0 zoom
+	cellSize = int(cellSizeF)
+	if cellSize > 50 {
+		cellSize = 50
+	}
+	if cellSize < 2 {
+		cellSize = 2
+	}
+
+	// Compute how many cells fit in the view
+	cols := availableWidth / cellSize
+	rows := availableHeight / cellSize
+
+	// PanX/Y are cell offsets — apply them to center
+	centerRow := panY
+	centerCol := panX
+
+	halfRows := rows / 2
+	halfCols := cols / 2
+
+	minRow = centerRow - halfRows
+	maxRow = centerRow + halfRows
+	minCol = centerCol - halfCols
+	maxCol = centerCol + halfCols
+
+	margin = 0
+	width = cols*cellSize + 2*margin
+	height = rows*cellSize + 2*margin
+
+	return
+}
 
 func currentBoard(g *Game) *InfiniteGrid {
 	if g.UseA {
@@ -75,6 +118,9 @@ func draw(w *app.Window) error {
 		explorerInstance = explorer.NewExplorer(w)
 	}
 
+	var tag = new(bool)
+	event.Op(&ops, tag)
+
 	for {
 		e := w.Event()
 		explorerInstance.ListenEvents(e)
@@ -83,6 +129,41 @@ func draw(w *app.Window) error {
 			gtx := app.NewContext(&ops, evt)
 			gtx.Execute(op.InvalidateCmd{})
 
+			// Key events
+			for {
+				ev, ok := gtx.Event(key.Filter{
+					Optional: key.ModShift,
+				})
+				if !ok {
+					break
+				}
+				if kev, ok := ev.(key.Event); ok {
+					switch kev.Name {
+					case key.NameUpArrow:
+						panY -= 2
+					case key.NameDownArrow:
+						panY += 2
+					case key.NameLeftArrow:
+						panX -= 2
+					case key.NameRightArrow:
+						panX += 2
+					case "+":
+						zoomLevel *= 1.1
+						if zoomLevel > 4 {
+							zoomLevel = 4
+						}
+					case "-":
+						zoomLevel *= 0.9
+						if zoomLevel < 0.25 {
+							zoomLevel = 0.25
+						}
+					}
+				} else {
+					break
+				}
+			}
+
+			// Button events
 			if playPauseButton.Clicked(gtx) {
 				if !playing {
 					playing = true
@@ -128,6 +209,9 @@ func draw(w *app.Window) error {
 					UseA:   true,
 					Turn:   1,
 				}
+				zoomLevel = 1.0
+				panX = 0
+				panY = 0
 			}
 			if nextButton.Clicked(gtx) && (!playing || paused) {
 				game.Tick()
@@ -154,9 +238,9 @@ func draw(w *app.Window) error {
 				}()
 			}
 
+			// Layout
 			layout.Flex{
-				Axis:    layout.Vertical,
-				Spacing: layout.SpaceStart,
+				Axis: layout.Vertical,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx C) D {
 					gen := game.Turn
@@ -164,30 +248,13 @@ func draw(w *app.Window) error {
 					return layout.Center.Layout(gtx, label.Layout)
 				}),
 				layout.Rigid(func(gtx C) D {
-					// TODO: pan/zoom... we need to support the infiniteness of our InfiniteGrid :P
+					label := material.Body1(th, fmt.Sprintf("Zoom: %.2fx  Pan: (%d,%d)", zoomLevel, panX, panY))
+					return layout.Center.Layout(gtx, label.Layout)
+				}),
+				layout.Rigid(func(gtx C) D {
 					board := currentBoard(&game)
-
-					viewSize := 40
-					cellSize := 15
-					margin := 8
-
-					var height, width, minRow, minCol, maxRow, maxCol = 0, 0, 0, 0, 0, 0
-					var dimensions, ok = dimensionCache[[3]int{viewSize, cellSize, margin}]
-					if !ok {
-						minRow, minCol := -viewSize/2, -viewSize/2
-						maxRow, maxCol := viewSize/2, viewSize/2
-						width = (maxCol-minCol)*cellSize + 2*margin
-						height = (maxRow-minRow)*cellSize + 2*margin
-						dimensionCache[[3]int{viewSize, cellSize, margin}] = [6]int{minRow, minCol, maxRow, maxCol, height, width}
-					} else {
-						minRow = dimensions[0]
-						minCol = dimensions[1]
-						maxRow = dimensions[2]
-						maxCol = dimensions[3]
-						height = dimensions[4]
-						width = dimensions[5]
-					}
-
+					minRow, minCol, maxRow, maxCol, cellSize, margin, width, height :=
+						computeDynamicView(board, gtx, zoomLevel, panX, panY)
 					return layout.Center.Layout(gtx, func(gtx C) D {
 						gtx.Constraints.Max.X = width
 						gtx.Constraints.Max.Y = height
@@ -200,7 +267,9 @@ func draw(w *app.Window) error {
 									col = color.NRGBA{R: 0, G: 200, B: 0, A: 255}
 								}
 								op := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
-								paint.FillShape(gtx.Ops, col, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(cellSize, cellSize)}.Op())
+								paint.FillShape(gtx.Ops, col, clip.Rect{
+									Min: image.Pt(0, 0),
+									Max: image.Pt(cellSize, cellSize)}.Op())
 								op.Pop()
 							}
 						}
@@ -208,13 +277,17 @@ func draw(w *app.Window) error {
 						for i := 0; i <= (maxRow - minRow); i++ {
 							y := margin + i*cellSize
 							op := op.Offset(image.Pt(margin, y)).Push(gtx.Ops)
-							paint.FillShape(gtx.Ops, gridCol, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt((maxCol-minCol)*cellSize, 1)}.Op())
+							paint.FillShape(gtx.Ops, gridCol, clip.Rect{
+								Min: image.Pt(0, 0),
+								Max: image.Pt((maxCol-minCol)*cellSize, 1)}.Op())
 							op.Pop()
 						}
 						for j := 0; j <= (maxCol - minCol); j++ {
 							x := margin + j*cellSize
 							op := op.Offset(image.Pt(x, margin)).Push(gtx.Ops)
-							paint.FillShape(gtx.Ops, gridCol, clip.Rect{Min: image.Pt(0, 0), Max: image.Pt(1, (maxRow-minRow)*cellSize)}.Op())
+							paint.FillShape(gtx.Ops, gridCol, clip.Rect{
+								Min: image.Pt(0, 0),
+								Max: image.Pt(1, (maxRow-minRow)*cellSize)}.Op())
 							op.Pop()
 						}
 						return D{Size: image.Pt(width, height)}
@@ -222,11 +295,12 @@ func draw(w *app.Window) error {
 				}),
 				layout.Rigid(
 					func(gtx C) D {
+						btnSize := gtx.Constraints.Min.X / 3
 						margins := layout.Inset{
 							Top:    unit.Dp(25),
 							Bottom: unit.Dp(5),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(btnSize),
+							Left:   unit.Dp(btnSize),
 						}
 						return margins.Layout(gtx,
 							func(gtx C) D {
@@ -241,11 +315,12 @@ func draw(w *app.Window) error {
 				),
 				layout.Rigid(
 					func(gtx C) D {
+						btnSize := gtx.Constraints.Min.X / 3
 						margins := layout.Inset{
 							Top:    unit.Dp(5),
 							Bottom: unit.Dp(5),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(btnSize),
+							Left:   unit.Dp(btnSize),
 						}
 						return margins.Layout(gtx,
 							func(gtx C) D {
@@ -265,11 +340,12 @@ func draw(w *app.Window) error {
 				),
 				layout.Rigid(
 					func(gtx C) D {
+						btnSize := gtx.Constraints.Min.X / 3
 						margins := layout.Inset{
 							Top:    unit.Dp(5),
 							Bottom: unit.Dp(5),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(btnSize),
+							Left:   unit.Dp(btnSize),
 						}
 						return margins.Layout(gtx,
 							func(gtx C) D {
@@ -281,11 +357,12 @@ func draw(w *app.Window) error {
 				),
 				layout.Rigid(
 					func(gtx C) D {
+						btnSize := gtx.Constraints.Min.X / 3
 						margins := layout.Inset{
 							Top:    unit.Dp(5),
 							Bottom: unit.Dp(5),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(btnSize),
+							Left:   unit.Dp(btnSize),
 						}
 						return margins.Layout(gtx,
 							func(gtx C) D {
@@ -297,11 +374,12 @@ func draw(w *app.Window) error {
 				),
 				layout.Rigid(
 					func(gtx C) D {
+						btnSize := gtx.Constraints.Min.X / 3
 						margins := layout.Inset{
 							Top:    unit.Dp(5),
 							Bottom: unit.Dp(25),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(btnSize),
+							Left:   unit.Dp(btnSize),
 						}
 						return margins.Layout(gtx,
 							func(gtx C) D {
@@ -316,6 +394,7 @@ func draw(w *app.Window) error {
 				fmt.Fprintf(os.Stderr, "Failed to import RLE: %v\n", fileReadErr)
 			}
 			evt.Frame(gtx.Ops)
+
 		case app.DestroyEvent:
 			return evt.Err
 		}
