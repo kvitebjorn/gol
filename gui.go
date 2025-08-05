@@ -27,6 +27,9 @@ var (
 	initialBoard InfiniteGrid // For reset
 )
 
+// For grid memoization (minRow, minCol, maxRow, maxCol, height, width)
+var dimensionCache map[[3]int][6]int = make(map[[3]int][6]int)
+
 func itoa(i int) string {
 	return fmt.Sprintf("%d", i)
 }
@@ -78,6 +81,7 @@ func draw(w *app.Window) error {
 		switch evt := e.(type) {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, evt)
+			gtx.Execute(op.InvalidateCmd{})
 
 			if playPauseButton.Clicked(gtx) {
 				if !playing {
@@ -145,8 +149,6 @@ func draw(w *app.Window) error {
 						initialBoard = b.DeepCopy()
 						fileReadErr = nil
 						resetButton.Click()
-
-						// TODO: this doesn't seem to be invalidating the layout to reflect the new board
 					}
 					fileDialogActive = false
 				}()
@@ -162,20 +164,30 @@ func draw(w *app.Window) error {
 					return layout.Center.Layout(gtx, label.Layout)
 				}),
 				layout.Rigid(func(gtx C) D {
-					// TODO: Dynamically center and fit all live cells
-					//        one naive way is to get teh Bounds of the grid and change cell size
-					//        always keeping a fixed view size
-					//        but this will not work well for very sparse grids
+					// TODO: pan/zoom... we need to support the infiniteness of our InfiniteGrid :P
 					board := currentBoard(&game)
 
 					viewSize := 40
 					cellSize := 15
 					margin := 8
 
-					minRow, minCol := -viewSize/2, -viewSize/2
-					maxRow, maxCol := viewSize/2, viewSize/2
-					width := (maxCol-minCol)*cellSize + 2*margin
-					height := (maxRow-minRow)*cellSize + 2*margin
+					var height, width, minRow, minCol, maxRow, maxCol = 0, 0, 0, 0, 0, 0
+					var dimensions, ok = dimensionCache[[3]int{viewSize, cellSize, margin}]
+					if !ok {
+						minRow, minCol := -viewSize/2, -viewSize/2
+						maxRow, maxCol := viewSize/2, viewSize/2
+						width = (maxCol-minCol)*cellSize + 2*margin
+						height = (maxRow-minRow)*cellSize + 2*margin
+						dimensionCache[[3]int{viewSize, cellSize, margin}] = [6]int{minRow, minCol, maxRow, maxCol, height, width}
+					} else {
+						minRow = dimensions[0]
+						minCol = dimensions[1]
+						maxRow = dimensions[2]
+						maxCol = dimensions[3]
+						height = dimensions[4]
+						width = dimensions[5]
+					}
+
 					return layout.Center.Layout(gtx, func(gtx C) D {
 						gtx.Constraints.Max.X = width
 						gtx.Constraints.Max.Y = height
@@ -221,8 +233,6 @@ func draw(w *app.Window) error {
 								btn := material.Button(th, &nextButton, "Next")
 								if playing && !paused {
 									btn.Background = color.NRGBA{R: 180, G: 180, B: 180, A: 255}
-									btn.Inset = layout.UniformInset(unit.Dp(2))
-									btn.Text = "Next (Disabled)"
 								}
 								return btn.Layout(gtx)
 							},
@@ -316,10 +326,8 @@ func draw(w *app.Window) error {
 func RunGUI(imported *InfiniteGrid) {
 	go func() {
 		w := new(app.Window)
-		w.Option(
-			app.Title("Game of Life"),
-			app.Size(600, 600),
-		)
+		w.Option(app.Title("Game of Life"))
+		w.Option(app.Maximized.Option())
 
 		var ig InfiniteGrid
 		if imported != nil {
