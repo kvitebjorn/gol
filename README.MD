@@ -9,6 +9,8 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 - RLE support 
 - Test suite for common patterns (still lifes, oscillators, spaceships)
 
+![Screenshot](gol.png)
+
 ### Usage
 
 Run the program:
