@@ -21,8 +21,6 @@ import (
 	"gioui.org/x/explorer"
 )
 
-// TODO: memoize layout computations
-
 type C = layout.Context
 type D = layout.Dimensions
 
@@ -39,7 +37,6 @@ var nextButton widget.Clickable
 var resetButton widget.Clickable
 var importButton widget.Clickable
 var playPauseButton widget.Clickable
-var stopButton widget.Clickable
 
 var explorerInstance *explorer.Explorer
 var fileReadErr error
@@ -55,9 +52,19 @@ var (
 	panY      = 0   // in cells
 )
 
-func computeDynamicView(board *InfiniteGrid, gtx layout.Context, zoom float64, panX, panY int) (minRow, minCol, maxRow, maxCol, cellSize, margin, width, height int) {
+func computeDynamicView(gtx layout.Context,
+	zoom float64,
+	panX, panY int) (
+	minRow,
+	minCol,
+	maxRow,
+	maxCol,
+	cellSize,
+	margin,
+	width,
+	height int) {
 	availableWidth := gtx.Constraints.Max.X - 2*gtx.Dp(unit.Dp(10)) // 10px margin on each side
-	availableHeight := gtx.Constraints.Max.Y / 2                    // keep this for UI layout balance
+	availableHeight := gtx.Constraints.Max.Y
 
 	// Determine desired cell size
 	cellSizeF := zoom * 20 // base size of 20px at 1.0 zoom
@@ -121,6 +128,7 @@ func draw(w *app.Window) error {
 	var tag = new(bool)
 	event.Op(&ops, tag)
 
+	// Event loop
 	for {
 		e := w.Event()
 		explorerInstance.ListenEvents(e)
@@ -198,9 +206,6 @@ func draw(w *app.Window) error {
 					paused = !paused
 				}
 			}
-			if stopButton.Clicked(gtx) {
-				stopPlayback()
-			}
 			if resetButton.Clicked(gtx) {
 				stopPlayback()
 				game = Game{
@@ -251,10 +256,12 @@ func draw(w *app.Window) error {
 					label := material.Body1(th, fmt.Sprintf("Zoom: %.2fx  Pan: (%d,%d)", zoomLevel, panX, panY))
 					return layout.Center.Layout(gtx, label.Layout)
 				}),
-				layout.Rigid(func(gtx C) D {
+				layout.Flexed(1, func(gtx C) D {
 					board := currentBoard(&game)
 					minRow, minCol, maxRow, maxCol, cellSize, margin, width, height :=
-						computeDynamicView(board, gtx, zoomLevel, panX, panY)
+						computeDynamicView(gtx, zoomLevel, panX, panY)
+					size := gtx.Constraints.Max
+					gtx.Constraints.Min = size
 					return layout.Center.Layout(gtx, func(gtx C) D {
 						gtx.Constraints.Max.X = width
 						gtx.Constraints.Max.Y = height
@@ -293,37 +300,26 @@ func draw(w *app.Window) error {
 						return D{Size: image.Pt(width, height)}
 					})
 				}),
-				layout.Rigid(
-					func(gtx C) D {
-						btnSize := gtx.Constraints.Min.X / 3
-						margins := layout.Inset{
-							Top:    unit.Dp(25),
-							Bottom: unit.Dp(5),
-							Right:  unit.Dp(btnSize),
-							Left:   unit.Dp(btnSize),
-						}
-						return margins.Layout(gtx,
-							func(gtx C) D {
+				layout.Rigid(func(gtx C) D {
+					return layout.Inset{
+						Top:    unit.Dp(10),
+						Bottom: unit.Dp(10),
+						Left:   unit.Dp(10),
+						Right:  unit.Dp(10),
+					}.Layout(gtx, func(gtx C) D {
+						return layout.Flex{
+							Axis:      layout.Horizontal,
+							Spacing:   layout.SpaceSides,
+							Alignment: layout.Middle,
+						}.Layout(gtx,
+							layout.Rigid(func(gtx C) D {
 								btn := material.Button(th, &nextButton, "Next")
 								if playing && !paused {
 									btn.Background = color.NRGBA{R: 180, G: 180, B: 180, A: 255}
 								}
-								return btn.Layout(gtx)
-							},
-						)
-					},
-				),
-				layout.Rigid(
-					func(gtx C) D {
-						btnSize := gtx.Constraints.Min.X / 3
-						margins := layout.Inset{
-							Top:    unit.Dp(5),
-							Bottom: unit.Dp(5),
-							Right:  unit.Dp(btnSize),
-							Left:   unit.Dp(btnSize),
-						}
-						return margins.Layout(gtx,
-							func(gtx C) D {
+								return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+							}),
+							layout.Rigid(func(gtx C) D {
 								btn := material.Button(th, &playPauseButton, func() string {
 									if !playing {
 										return "Play"
@@ -333,62 +329,19 @@ func draw(w *app.Window) error {
 										return "Pause"
 									}
 								}())
-								return btn.Layout(gtx)
-							},
-						)
-					},
-				),
-				layout.Rigid(
-					func(gtx C) D {
-						btnSize := gtx.Constraints.Min.X / 3
-						margins := layout.Inset{
-							Top:    unit.Dp(5),
-							Bottom: unit.Dp(5),
-							Right:  unit.Dp(btnSize),
-							Left:   unit.Dp(btnSize),
-						}
-						return margins.Layout(gtx,
-							func(gtx C) D {
-								btn := material.Button(th, &stopButton, "Stop")
-								return btn.Layout(gtx)
-							},
-						)
-					},
-				),
-				layout.Rigid(
-					func(gtx C) D {
-						btnSize := gtx.Constraints.Min.X / 3
-						margins := layout.Inset{
-							Top:    unit.Dp(5),
-							Bottom: unit.Dp(5),
-							Right:  unit.Dp(btnSize),
-							Left:   unit.Dp(btnSize),
-						}
-						return margins.Layout(gtx,
-							func(gtx C) D {
+								return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+							}),
+							layout.Rigid(func(gtx C) D {
 								btn := material.Button(th, &resetButton, "Reset")
-								return btn.Layout(gtx)
-							},
-						)
-					},
-				),
-				layout.Rigid(
-					func(gtx C) D {
-						btnSize := gtx.Constraints.Min.X / 3
-						margins := layout.Inset{
-							Top:    unit.Dp(5),
-							Bottom: unit.Dp(25),
-							Right:  unit.Dp(btnSize),
-							Left:   unit.Dp(btnSize),
-						}
-						return margins.Layout(gtx,
-							func(gtx C) D {
+								return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+							}),
+							layout.Rigid(func(gtx C) D {
 								btn := material.Button(th, &importButton, "Import RLE")
-								return btn.Layout(gtx)
-							},
+								return layout.UniformInset(unit.Dp(4)).Layout(gtx, btn.Layout)
+							}),
 						)
-					},
-				),
+					})
+				}),
 			)
 			if fileReadErr != nil {
 				fmt.Fprintf(os.Stderr, "Failed to import RLE: %v\n", fileReadErr)
