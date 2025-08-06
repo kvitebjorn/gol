@@ -101,6 +101,16 @@ func (g InfiniteGrid) DeepCopy() InfiniteGrid {
 	return copy
 }
 
+// AliveCells returns a slice of coordinates of all currently alive cells.
+// This provides a fast sparse iteration path for rendering and other ops.
+func (g *InfiniteGrid) AliveCells() [][2]int {
+	out := make([][2]int, 0, len(g.Cells))
+	for k := range g.Cells {
+		out = append(out, k)
+	}
+	return out
+}
+
 // Cell represents a single cell in the Game of Life grid.
 type Cell bool
 

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"log"
 	"os"
+	"sort"
 	"time"
 
 	"gioui.org/app"
@@ -13,7 +15,6 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -51,6 +52,11 @@ var (
 	panX      = 0   // in cells
 	panY      = 0   // in cells
 )
+
+// Used to provide a fast path for rendering alive cells in the view.
+type aliveProvider interface {
+	AliveCells() [][2]int
+}
 
 func computeDynamicView(gtx layout.Context,
 	zoom float64,
@@ -117,7 +123,20 @@ func stopPlayback() {
 	}
 }
 
-func draw(w *app.Window) error {
+// GUI-level cache for the *current visible view* (simple whole-view cache).
+// This is invalidated when the board changes generation, pan/zoom changes, or when import/reset happens.
+type viewCache struct {
+	img      *image.RGBA
+	turn     int
+	panX     int
+	panY     int
+	zoom     float64
+	width    int
+	height   int
+	cellSize int
+}
+
+func runWindow(w *app.Window) error {
 	var ops op.Ops
 	th := material.NewTheme()
 
@@ -128,6 +147,9 @@ func draw(w *app.Window) error {
 	var tag = new(bool)
 	event.Op(&ops, tag)
 
+	// simple persistent cache variables captured in closure
+	var cache viewCache
+
 	// Event loop
 	for {
 		e := w.Event()
@@ -137,6 +159,7 @@ func draw(w *app.Window) error {
 			gtx := app.NewContext(&ops, evt)
 
 			// Key events
+			changed := false
 			for {
 				ev, ok := gtx.Event(key.Filter{
 					Optional: key.ModShift,
@@ -148,32 +171,43 @@ func draw(w *app.Window) error {
 					switch kev.Name {
 					case key.NameUpArrow:
 						panY -= 2
-						w.Invalidate()
+						changed = true
 					case key.NameDownArrow:
 						panY += 2
-						w.Invalidate()
+						changed = true
 					case key.NameLeftArrow:
 						panX -= 2
-						w.Invalidate()
+						changed = true
 					case key.NameRightArrow:
 						panX += 2
-						w.Invalidate()
+						changed = true
 					case "+":
+						old := zoomLevel
 						zoomLevel *= 1.1
 						if zoomLevel > 4 {
 							zoomLevel = 4
 						}
-						w.Invalidate()
+						if zoomLevel != old {
+							changed = true
+						}
 					case "-":
+						old := zoomLevel
 						zoomLevel *= 0.9
 						if zoomLevel < 0.25 {
 							zoomLevel = 0.25
 						}
-						w.Invalidate()
+						if zoomLevel != old {
+							changed = true
+						}
 					}
 				} else {
 					break
 				}
+			}
+			if changed {
+				// Invalidate both Gio and our cache (cache will be rebuilt lazily on next paint)
+				w.Invalidate()
+				cache.img = nil
 			}
 
 			// Button events
@@ -194,7 +228,7 @@ func draw(w *app.Window) error {
 									select {
 									case <-stopCh:
 										return
-									case <-time.After(100 * time.Millisecond):
+									case <-time.After(25 * time.Millisecond):
 									}
 								} else {
 									// If paused, poll for stop or unpause every 100ms
@@ -207,8 +241,11 @@ func draw(w *app.Window) error {
 							}
 						}
 					}(playStopCh, w)
+					// new play started — ensure one frame
+					w.Invalidate()
 				} else {
 					paused = !paused
+					w.Invalidate()
 				}
 			}
 			if resetButton.Clicked(gtx) {
@@ -223,14 +260,16 @@ func draw(w *app.Window) error {
 				panX = 0
 				panY = 0
 				w.Invalidate()
+				cache.img = nil
 			}
 			if nextButton.Clicked(gtx) && (!playing || paused) {
 				game.Tick()
 				w.Invalidate()
+				cache.img = nil
 			}
 			if importButton.Clicked(gtx) && !fileDialogActive {
 				fileDialogActive = true
-				go func() {
+				go func(win *app.Window) {
 					r, err := explorerInstance.ChooseFile(".rle")
 					if err != nil {
 						fileReadErr = err
@@ -244,11 +283,21 @@ func draw(w *app.Window) error {
 					} else {
 						initialBoard = b.DeepCopy()
 						fileReadErr = nil
-						resetButton.Click()
+						stopPlayback()
+						game = Game{
+							BoardA: initialBoard.DeepCopy(),
+							BoardB: initialBoard.DeepCopy(),
+							UseA:   true,
+							Turn:   1,
+						}
+						zoomLevel = 1.0
+						panX = 0
+						panY = 0
+						win.Invalidate()
+						cache.img = nil
 					}
 					fileDialogActive = false
-					w.Invalidate()
-				}()
+				}(w)
 			}
 
 			// Layout
@@ -268,43 +317,132 @@ func draw(w *app.Window) error {
 					board := currentBoard(&game)
 					minRow, minCol, maxRow, maxCol, cellSize, margin, width, height :=
 						computeDynamicView(gtx, zoomLevel, panX, panY)
+
+					// If the computed width/height is zero or negative, skip heavy rendering.
+					if width <= 0 || height <= 0 || cellSize <= 0 {
+						return D{Size: image.Pt(0, 0)}
+					}
+
 					size := gtx.Constraints.Max
 					gtx.Constraints.Min = size
 					return layout.Center.Layout(gtx, func(gtx C) D {
 						gtx.Constraints.Max.X = width
 						gtx.Constraints.Max.Y = height
-						for i := minRow; i < maxRow; i++ {
-							for j := minCol; j < maxCol; j++ {
-								x := margin + (j-minCol)*cellSize
-								y := margin + (i-minRow)*cellSize
-								col := color.NRGBA{R: 220, G: 220, B: 220, A: 255}
-								if board.At(i, j) {
-									col = color.NRGBA{R: 0, G: 200, B: 0, A: 255}
+
+						// If cache matches, paint cached image directly
+						useCache := cache.img != nil &&
+							cache.turn == game.Turn &&
+							cache.panX == panX &&
+							cache.panY == panY &&
+							cache.zoom == zoomLevel &&
+							cache.width == width &&
+							cache.height == height &&
+							cache.cellSize == cellSize
+
+						if !useCache {
+							// build new image cache for this view
+							img := image.NewRGBA(image.Rect(0, 0, width, height))
+
+							// fill background (light gray)
+							bg := image.NewUniform(color.NRGBA{R: 220, G: 220, B: 220, A: 255})
+							draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src)
+
+							// draw alive cells into the image (sparse fast path)
+							if ap, ok := interface{}(board).(aliveProvider); ok {
+								// Bucket cells by row so we can draw contiguous runs more efficiently.
+								colsByRow := map[int][]int{}
+								for _, p := range ap.AliveCells() {
+									r := p[0]
+									c := p[1]
+									if r < minRow || r >= maxRow || c < minCol || c >= maxCol {
+										continue
+									}
+									colsByRow[r] = append(colsByRow[r], c)
 								}
-								op := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
-								paint.FillShape(gtx.Ops, col, clip.Rect{
-									Min: image.Pt(0, 0),
-									Max: image.Pt(cellSize, cellSize)}.Op())
-								op.Pop()
+								fillCol := image.NewUniform(color.NRGBA{R: 0, G: 200, B: 0, A: 255})
+								for r, cols := range colsByRow {
+									if len(cols) == 0 {
+										continue
+									}
+									sort.Ints(cols)
+									start := cols[0]
+									last := start
+									y := margin + (r-minRow)*cellSize
+									for i := 1; i < len(cols); i++ {
+										if cols[i] == last || cols[i] == last+1 {
+											last = cols[i]
+											continue
+										}
+										// draw run start..last
+										x := margin + (start-minCol)*cellSize
+										wPixels := (last - start + 1) * cellSize
+										rect := image.Rect(x, y, x+wPixels, y+cellSize)
+										draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
+										start = cols[i]
+										last = cols[i]
+									}
+									// final run
+									x := margin + (start-minCol)*cellSize
+									wPixels := (last - start + 1) * cellSize
+									rect := image.Rect(x, y, x+wPixels, y+cellSize)
+									draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
+								}
+							} else {
+								// fallback viewport scan with run grouping
+								fillCol := image.NewUniform(color.NRGBA{R: 0, G: 200, B: 0, A: 255})
+								for i := minRow; i < maxRow; i++ {
+									y := margin + (i-minRow)*cellSize
+									j := minCol
+									for j < maxCol {
+										if !board.At(i, j) {
+											j++
+											continue
+										}
+										start := j
+										j++
+										for j < maxCol && board.At(i, j) {
+											j++
+										}
+										x := margin + (start-minCol)*cellSize
+										wPixels := (j - start) * cellSize
+										rect := image.Rect(x, y, x+wPixels, y+cellSize)
+										draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
+									}
+								}
 							}
+
+							// draw grid lines into image
+							gridCol := image.NewUniform(color.NRGBA{R: 180, G: 180, B: 180, A: 255})
+							// horizontal lines
+							for i := 0; i <= (maxRow - minRow); i++ {
+								y := margin + i*cellSize
+								rect := image.Rect(margin, y, margin+(maxCol-minCol)*cellSize, y+1)
+								draw.Draw(img, rect, gridCol, image.Point{}, draw.Src)
+							}
+							// vertical lines
+							for j := 0; j <= (maxCol - minCol); j++ {
+								x := margin + j*cellSize
+								rect := image.Rect(x, margin, x+1, margin+(maxRow-minRow)*cellSize)
+								draw.Draw(img, rect, gridCol, image.Point{}, draw.Src)
+							}
+
+							// store cache
+							cache.img = img
+							cache.turn = game.Turn
+							cache.panX = panX
+							cache.panY = panY
+							cache.zoom = zoomLevel
+							cache.width = width
+							cache.height = height
+							cache.cellSize = cellSize
 						}
-						gridCol := color.NRGBA{R: 180, G: 180, B: 180, A: 255}
-						for i := 0; i <= (maxRow - minRow); i++ {
-							y := margin + i*cellSize
-							op := op.Offset(image.Pt(margin, y)).Push(gtx.Ops)
-							paint.FillShape(gtx.Ops, gridCol, clip.Rect{
-								Min: image.Pt(0, 0),
-								Max: image.Pt((maxCol-minCol)*cellSize, 1)}.Op())
-							op.Pop()
+
+						// paint cached image (single image op)
+						if cache.img != nil {
+							paint.NewImageOp(cache.img).Add(gtx.Ops)
+							paint.PaintOp{}.Add(gtx.Ops)
 						}
-						for j := 0; j <= (maxCol - minCol); j++ {
-							x := margin + j*cellSize
-							op := op.Offset(image.Pt(x, margin)).Push(gtx.Ops)
-							paint.FillShape(gtx.Ops, gridCol, clip.Rect{
-								Min: image.Pt(0, 0),
-								Max: image.Pt(1, (maxRow-minRow)*cellSize)}.Op())
-							op.Pop()
-						}
+
 						return D{Size: image.Pt(width, height)}
 					})
 				}),
@@ -389,7 +527,7 @@ func RunGUI(imported *InfiniteGrid) {
 			UseA:   true,
 			Turn:   1,
 		}
-		if err := draw(w); err != nil {
+		if err := runWindow(w); err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(0)
