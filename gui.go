@@ -135,7 +135,6 @@ func draw(w *app.Window) error {
 		switch evt := e.(type) {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, evt)
-			gtx.Execute(op.InvalidateCmd{})
 
 			// Key events
 			for {
@@ -149,22 +148,28 @@ func draw(w *app.Window) error {
 					switch kev.Name {
 					case key.NameUpArrow:
 						panY -= 2
+						w.Invalidate()
 					case key.NameDownArrow:
 						panY += 2
+						w.Invalidate()
 					case key.NameLeftArrow:
 						panX -= 2
+						w.Invalidate()
 					case key.NameRightArrow:
 						panX += 2
+						w.Invalidate()
 					case "+":
 						zoomLevel *= 1.1
 						if zoomLevel > 4 {
 							zoomLevel = 4
 						}
+						w.Invalidate()
 					case "-":
 						zoomLevel *= 0.9
 						if zoomLevel < 0.25 {
 							zoomLevel = 0.25
 						}
+						w.Invalidate()
 					}
 				} else {
 					break
@@ -189,7 +194,7 @@ func draw(w *app.Window) error {
 									select {
 									case <-stopCh:
 										return
-									case <-time.After(25 * time.Millisecond):
+									case <-time.After(100 * time.Millisecond):
 									}
 								} else {
 									// If paused, poll for stop or unpause every 100ms
@@ -217,9 +222,11 @@ func draw(w *app.Window) error {
 				zoomLevel = 1.0
 				panX = 0
 				panY = 0
+				w.Invalidate()
 			}
 			if nextButton.Clicked(gtx) && (!playing || paused) {
 				game.Tick()
+				w.Invalidate()
 			}
 			if importButton.Clicked(gtx) && !fileDialogActive {
 				fileDialogActive = true
@@ -240,6 +247,7 @@ func draw(w *app.Window) error {
 						resetButton.Click()
 					}
 					fileDialogActive = false
+					w.Invalidate()
 				}()
 			}
 
