@@ -504,8 +504,6 @@ func runWindow(w *app.Window) error {
 
 							// paint cached image (single image op)
 							if cache.img != nil {
-								op.Offset(image.Pt(panX+margin, panY+margin)).Add(gtx.Ops)
-
 								paint.NewImageOp(cache.img).Add(gtx.Ops)
 								paint.PaintOp{}.Add(gtx.Ops)
 							}
