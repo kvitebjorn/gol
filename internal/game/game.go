@@ -13,6 +13,13 @@ type Game struct {
 	Turn int
 }
 
+func (g *Game) CurrentBoard() *InfiniteGrid {
+	if g.UseA {
+		return &g.BoardA
+	}
+	return &g.BoardB
+}
+
 // Tick advances the game by one generation, applying the Game of Life rules.
 func (g *Game) Tick() {
 	// If BoardA is InfiniteGrid, use infinite tick logic

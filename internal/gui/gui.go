@@ -21,14 +21,16 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/explorer"
+	"github.com/kvitebjorn/gol/internal/game"
+	"github.com/kvitebjorn/gol/internal/util"
 )
 
 type C = layout.Context
 type D = layout.Dimensions
 
 var (
-	game         Game         // Global game state
-	initialBoard InfiniteGrid // For reset
+	gameState    game.Game         // Global game state
+	initialBoard game.InfiniteGrid // For reset
 )
 
 func itoa(i int) string {
@@ -99,13 +101,6 @@ func computeDynamicView(gtx layout.Context,
 	height = rows*cellSize + 2*margin
 
 	return
-}
-
-func currentBoard(g *Game) *InfiniteGrid {
-	if g.UseA {
-		return &g.BoardA
-	}
-	return &g.BoardB
 }
 
 func stopPlayback() {
@@ -219,7 +214,7 @@ func runWindow(w *app.Window) error {
 								return
 							default:
 								if !paused {
-									game.Tick()
+									gameState.Tick()
 									win.Invalidate()
 									select {
 									case <-stopCh:
@@ -246,7 +241,7 @@ func runWindow(w *app.Window) error {
 			}
 			if resetButton.Clicked(gtx) {
 				stopPlayback()
-				game = Game{
+				gameState = game.Game{
 					BoardA: initialBoard.DeepCopy(),
 					BoardB: initialBoard.DeepCopy(),
 					UseA:   true,
@@ -259,7 +254,7 @@ func runWindow(w *app.Window) error {
 				cache.img = nil
 			}
 			if nextButton.Clicked(gtx) && (!playing || paused) {
-				game.Tick()
+				gameState.Tick()
 				w.Invalidate()
 				cache.img = nil
 			}
@@ -273,14 +268,14 @@ func runWindow(w *app.Window) error {
 						return
 					}
 					defer r.Close()
-					b, err := ImportRLE(r)
+					b, err := util.ImportRLE(r)
 					if err != nil {
 						fileReadErr = err
 					} else {
 						initialBoard = b.DeepCopy()
 						fileReadErr = nil
 						stopPlayback()
-						game = Game{
+						gameState = game.Game{
 							BoardA: initialBoard.DeepCopy(),
 							BoardB: initialBoard.DeepCopy(),
 							UseA:   true,
@@ -301,7 +296,7 @@ func runWindow(w *app.Window) error {
 				Axis: layout.Vertical,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx C) D {
-					gen := game.Turn
+					gen := gameState.Turn
 					label := material.H6(th, "Generation: "+itoa(gen))
 					return layout.Center.Layout(gtx, label.Layout)
 				}),
@@ -310,7 +305,7 @@ func runWindow(w *app.Window) error {
 					return layout.Center.Layout(gtx, label.Layout)
 				}),
 				layout.Flexed(1, func(gtx C) D {
-					board := currentBoard(&game)
+					board := gameState.CurrentBoard()
 					minRow, minCol, maxRow, maxCol, cellSize, margin, width, height :=
 						computeDynamicView(gtx, zoomLevel, panX, panY)
 
@@ -365,7 +360,7 @@ func runWindow(w *app.Window) error {
 										row := minRow + cellRow
 										col := minCol + cellCol
 
-										board := currentBoard(&game)
+										board := gameState.CurrentBoard()
 										cur := board.At(row, col)
 										board.Set(row, col, !cur)
 
@@ -377,7 +372,7 @@ func runWindow(w *app.Window) error {
 
 							// If cache matches, paint cached image directly
 							useCache := cache.img != nil &&
-								cache.turn == game.Turn &&
+								cache.turn == gameState.Turn &&
 								cache.panX == panX &&
 								cache.panY == panY &&
 								cache.zoom == zoomLevel &&
@@ -454,7 +449,7 @@ func runWindow(w *app.Window) error {
 
 								// store cache
 								cache.img = img
-								cache.turn = game.Turn
+								cache.turn = gameState.Turn
 								cache.panX = panX
 								cache.panY = panY
 								cache.zoom = zoomLevel
@@ -528,13 +523,13 @@ func runWindow(w *app.Window) error {
 }
 
 // RunGUI launches a minimal Game of Life GUI. Right arrow advances one tick.
-func RunGUI(imported *InfiniteGrid) {
+func RunGUI(imported *game.InfiniteGrid) {
 	go func() {
 		w := new(app.Window)
 		w.Option(app.Title("Game of Life"))
 		w.Option(app.Maximized.Option())
 
-		var ig InfiniteGrid
+		var ig game.InfiniteGrid
 		if imported != nil {
 			ig = imported.DeepCopy()
 		} else {
@@ -542,13 +537,13 @@ func RunGUI(imported *InfiniteGrid) {
 			initial := [][2]int{
 				{0, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2},
 			}
-			ig = NewInfiniteGrid()
+			ig = game.NewInfiniteGrid()
 			for _, p := range initial {
 				ig.Set(p[0], p[1], true)
 			}
 		}
 		initialBoard = ig.DeepCopy()
-		game = Game{
+		gameState = game.Game{
 			BoardA: initialBoard.DeepCopy(),
 			BoardB: initialBoard.DeepCopy(),
 			UseA:   true,

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/kvitebjorn/gol/internal/util"
 )
 
 func TestRLE_Block(t *testing.T) {
@@ -13,10 +15,10 @@ func TestRLE_Block(t *testing.T) {
 	}
 	g := makeInfiniteGrid(block)
 	var buf bytes.Buffer
-	if err := ExportRLE(&buf, g); err != nil {
+	if err := util.ExportRLE(&buf, g); err != nil {
 		t.Fatalf("ExportRLE failed: %v", err)
 	}
-	g2, err := ImportRLE(strings.NewReader(buf.String()))
+	g2, err := util.ImportRLE(strings.NewReader(buf.String()))
 	if err != nil {
 		t.Fatalf("ImportRLE failed: %v", err)
 	}
@@ -56,10 +58,10 @@ func TestRLE_Blinker(t *testing.T) {
 	}
 	g := makeInfiniteGrid(blinker)
 	var buf bytes.Buffer
-	if err := ExportRLE(&buf, g); err != nil {
+	if err := util.ExportRLE(&buf, g); err != nil {
 		t.Fatalf("ExportRLE failed: %v", err)
 	}
-	g2, err := ImportRLE(strings.NewReader(buf.String()))
+	g2, err := util.ImportRLE(strings.NewReader(buf.String()))
 	if err != nil {
 		t.Fatalf("ImportRLE failed: %v", err)
 	}
@@ -100,10 +102,10 @@ func TestRLE_Toad(t *testing.T) {
 	}
 	g := makeInfiniteGrid(toad)
 	var buf bytes.Buffer
-	if err := ExportRLE(&buf, g); err != nil {
+	if err := util.ExportRLE(&buf, g); err != nil {
 		t.Fatalf("ExportRLE failed: %v", err)
 	}
-	g2, err := ImportRLE(strings.NewReader(buf.String()))
+	g2, err := util.ImportRLE(strings.NewReader(buf.String()))
 	if err != nil {
 		t.Fatalf("ImportRLE failed: %v", err)
 	}
@@ -148,10 +150,10 @@ func TestRLE_Beacon(t *testing.T) {
 	cols := len(beacon[0])
 	g := makeInfiniteGrid(beacon)
 	var buf bytes.Buffer
-	if err := ExportRLE(&buf, g); err != nil {
+	if err := util.ExportRLE(&buf, g); err != nil {
 		t.Fatalf("ExportRLE failed: %v", err)
 	}
-	g2, err := ImportRLE(strings.NewReader(buf.String()))
+	g2, err := util.ImportRLE(strings.NewReader(buf.String()))
 	if err != nil {
 		t.Fatalf("ImportRLE failed: %v", err)
 	}
@@ -170,10 +172,10 @@ func TestRLE_Glider(t *testing.T) {
 	cols := len(glider[0])
 	g := makeInfiniteGrid(glider)
 	var buf bytes.Buffer
-	if err := ExportRLE(&buf, g); err != nil {
+	if err := util.ExportRLE(&buf, g); err != nil {
 		t.Fatalf("ExportRLE failed: %v", err)
 	}
-	g2, err := ImportRLE(strings.NewReader(buf.String()))
+	g2, err := util.ImportRLE(strings.NewReader(buf.String()))
 	if err != nil {
 		t.Fatalf("ImportRLE failed: %v", err)
 	}
@@ -190,10 +192,10 @@ func TestRLE_Diehard(t *testing.T) {
 	}
 	g := makeInfiniteGrid(diehard)
 	var buf bytes.Buffer
-	if err := ExportRLE(&buf, g); err != nil {
+	if err := util.ExportRLE(&buf, g); err != nil {
 		t.Fatalf("ExportRLE failed: %v", err)
 	}
-	g2, err := ImportRLE(strings.NewReader(buf.String()))
+	g2, err := util.ImportRLE(strings.NewReader(buf.String()))
 	if err != nil {
 		t.Fatalf("ImportRLE failed: %v", err)
 	}

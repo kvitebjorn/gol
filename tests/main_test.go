@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"github.com/kvitebjorn/gol/internal/game"
 )
 
 func TestBlinkerOscillator(t *testing.T) {
@@ -14,14 +16,18 @@ func TestBlinkerOscillator(t *testing.T) {
 		{false, false, false, false, false},
 	}
 	boardA := makeInfiniteGrid(start)
-	boardB := NewInfiniteGrid()
-	game := Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
+	boardB := game.NewInfiniteGrid()
+	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
+
 	// Save initial state
 	initial := boardA.DeepCopy()
+
 	game.Tick()
-	mid := *currentBoard(&game)
+	mid := *game.CurrentBoard()
+
 	game.Tick()
-	end := *currentBoard(&game)
+	end := *game.CurrentBoard()
+
 	if gridsEqualRegion(initial, mid, 0, 0, 4, 4) {
 		t.Errorf("Blinker should change after one tick.")
 	}
@@ -41,13 +47,13 @@ func TestToadOscillator(t *testing.T) {
 		{false, false, false, false, false, false},
 	}
 	boardA := makeInfiniteGrid(start)
-	boardB := NewInfiniteGrid()
-	game := Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
+	boardB := game.NewInfiniteGrid()
+	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 	initial := boardA.DeepCopy()
 	game.Tick()
-	mid := *currentBoard(&game)
+	mid := *game.CurrentBoard()
 	game.Tick()
-	end := *currentBoard(&game)
+	end := *game.CurrentBoard()
 	if gridsEqualRegion(initial, mid, 0, 0, 5, 5) {
 		t.Errorf("Toad should change after one tick.")
 	}
@@ -65,11 +71,11 @@ func TestGliderSpaceship(t *testing.T) {
 		{false, false, false, false, false},
 	}
 	boardA := makeInfiniteGrid(start)
-	boardB := NewInfiniteGrid()
-	game := Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
+	boardB := game.NewInfiniteGrid()
+	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 	seen := make(map[string]bool)
 	for i := 0; i < 4; i++ {
-		cur := *currentBoard(&game)
+		cur := *game.CurrentBoard()
 		key := ""
 		for r := 0; r < 5; r++ {
 			for c := 0; c < 5; c++ {
@@ -105,12 +111,12 @@ func TestDiehardPattern(t *testing.T) {
 	start[row+2][col+6] = true // (4,12)
 	start[row+2][col+7] = true // (4,13)
 	boardA := makeInfiniteGrid(start)
-	boardB := NewInfiniteGrid()
-	game := Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
+	boardB := game.NewInfiniteGrid()
+	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 	maxTicks := 200
 	allDead := false
 	for i := 0; i < maxTicks; i++ {
-		cur := *currentBoard(&game)
+		cur := *game.CurrentBoard()
 		alive := false
 		for r := 0; r < height; r++ {
 			for c := 0; c < width; c++ {
