@@ -194,8 +194,8 @@ func runWindow(w *app.Window) error {
 					case "-":
 						old := zoomLevel
 						zoomLevel *= 0.9
-						if zoomLevel < 0.25 {
-							zoomLevel = 0.25
+						if zoomLevel < 0.1 {
+							zoomLevel = 0.1
 						}
 						if zoomLevel != old {
 							changed = true
