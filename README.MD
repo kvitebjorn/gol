@@ -6,6 +6,7 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 - A minimal GUI
   - Zoom with -/+
   - Pan with arrow keys
+  - Edit cells with a click
 - RLE support 
 - Test suite for common patterns (still lifes, oscillators, spaceships)
 
@@ -33,6 +34,7 @@ go test
 - A minimal GUI
   - Zoom with -/+
   - Pan with arrow keys
+  - Edit cells with a click
 - RLE support
 - Comprehensive test suite for classic Game of Life patterns
 
