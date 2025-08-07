@@ -34,6 +34,8 @@ func itoa(i int) string {
 	return fmt.Sprintf("%d", i)
 }
 
+var boardClickable widget.Clickable
+
 var nextButton widget.Clickable
 var resetButton widget.Clickable
 var importButton widget.Clickable
@@ -69,8 +71,10 @@ func computeDynamicView(gtx layout.Context,
 	margin,
 	width,
 	height int) {
-	availableWidth := gtx.Constraints.Max.X - 2*gtx.Dp(unit.Dp(10)) // 10px margin on each side
+	availableWidth := gtx.Constraints.Max.X - 2*gtx.Dp(unit.Dp(10))
 	availableHeight := gtx.Constraints.Max.Y
+
+	fmt.Println("Available width/height:", availableWidth, availableHeight)
 
 	// Determine desired cell size
 	cellSizeF := zoom * 20 // base size of 20px at 1.0 zoom
@@ -82,21 +86,22 @@ func computeDynamicView(gtx layout.Context,
 		cellSize = 2
 	}
 
+	fmt.Println("Computed cell size:", cellSize)
+
 	// Compute how many cells fit in the view
 	cols := availableWidth / cellSize
 	rows := availableHeight / cellSize
+
+	fmt.Println("Computed rows/cols:", rows, cols)
 
 	// PanX/Y are cell offsets — apply them to center
 	centerRow := panY
 	centerCol := panX
 
-	halfRows := rows / 2
-	halfCols := cols / 2
-
-	minRow = centerRow - halfRows
-	maxRow = centerRow + halfRows
-	minCol = centerCol - halfCols
-	maxCol = centerCol + halfCols
+	minRow = centerRow - rows/2
+	minCol = centerCol - cols/2
+	maxRow = minRow + rows
+	maxCol = minCol + cols
 
 	margin = 0
 	width = cols*cellSize + 2*margin
@@ -299,6 +304,62 @@ func runWindow(w *app.Window) error {
 					fileDialogActive = false
 				}(w)
 			}
+			if boardClickable.Clicked(gtx) {
+				history := boardClickable.History()
+				if len(history) > 0 {
+					clickPos := history[len(history)-1].Position
+
+					stopPlayback()
+
+					clickX, clickY := clickPos.X, clickPos.Y
+					minRow, minCol, _, _, cellSize, _, _, _ := computeDynamicView(gtx, zoomLevel, panX, panY)
+
+					cellCol := clickX / cellSize
+					cellRow := clickY / cellSize
+
+					row := minRow + cellRow
+					col := minCol + cellCol
+
+					// TODO: why is this 3 rows off???
+					/*
+											so... -23 is visually correct
+											why does it think i'm clicking -26 here???
+											the clickY to cellRow conversion is off
+											why is it getting Min Row/Col -26 -47 here??? it should be -23 -47
+
+						start click (here):
+						Available width/height: 1900 1046
+						Computed cell size: 20
+						Computed rows/cols: 52 95
+						Clicked cell: -26 -47
+						Click at: 8 12 cell: 0 0
+						Min Row/Col: -26 -47
+
+						start canvas:
+						Available width/height: 1900 932
+						Computed cell size: 20
+						Computed rows/cols: 46 95
+						Using aliveProvider for rendering
+						Min/Max Rows/Cols: -23 23 -47 48
+
+						             the incoming heights are drastically different!!!! it is the gtx!
+												 we don't have the grid gtx here???
+
+												 i think i have to move this into the boardClickable.Layout
+												 and pass the gtx from there!!!
+					*/
+					fmt.Println("Clicked cell:", row, col)
+					fmt.Println("Click at:", clickX, clickY, "cell:", cellRow, cellCol)
+					fmt.Println("Min Row/Col:", minRow, minCol)
+
+					board := currentBoard(&game)
+					cur := board.At(row, col)
+					board.Set(row, col, !cur)
+
+					cache.img = nil
+					w.Invalidate()
+				}
+			}
 
 			// Layout
 			layout.Flex{
@@ -329,121 +390,128 @@ func runWindow(w *app.Window) error {
 						gtx.Constraints.Max.X = width
 						gtx.Constraints.Max.Y = height
 
-						// If cache matches, paint cached image directly
-						useCache := cache.img != nil &&
-							cache.turn == game.Turn &&
-							cache.panX == panX &&
-							cache.panY == panY &&
-							cache.zoom == zoomLevel &&
-							cache.width == width &&
-							cache.height == height &&
-							cache.cellSize == cellSize
+						return boardClickable.Layout(gtx, func(gtx C) D {
+							// If cache matches, paint cached image directly
+							useCache := cache.img != nil &&
+								cache.turn == game.Turn &&
+								cache.panX == panX &&
+								cache.panY == panY &&
+								cache.zoom == zoomLevel &&
+								cache.width == width &&
+								cache.height == height &&
+								cache.cellSize == cellSize
 
-						if !useCache {
-							// build new image cache for this view
-							img := image.NewRGBA(image.Rect(0, 0, width, height))
+							if !useCache {
+								// build new image cache for this view
+								img := image.NewRGBA(image.Rect(0, 0, width, height))
 
-							// fill background (light gray)
-							bg := image.NewUniform(color.NRGBA{R: 220, G: 220, B: 220, A: 255})
-							draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src)
+								// fill background (light gray)
+								bg := image.NewUniform(color.NRGBA{R: 220, G: 220, B: 220, A: 255})
+								draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src)
 
-							// draw alive cells into the image (sparse fast path)
-							if ap, ok := interface{}(board).(aliveProvider); ok {
-								// Bucket cells by row so we can draw contiguous runs more efficiently.
-								colsByRow := map[int][]int{}
-								for _, p := range ap.AliveCells() {
-									r := p[0]
-									c := p[1]
-									if r < minRow || r >= maxRow || c < minCol || c >= maxCol {
-										continue
-									}
-									colsByRow[r] = append(colsByRow[r], c)
-								}
-								fillCol := image.NewUniform(color.NRGBA{R: 0, G: 200, B: 0, A: 255})
-								for r, cols := range colsByRow {
-									if len(cols) == 0 {
-										continue
-									}
-									sort.Ints(cols)
-									start := cols[0]
-									last := start
-									y := margin + (r-minRow)*cellSize
-									for i := 1; i < len(cols); i++ {
-										if cols[i] == last || cols[i] == last+1 {
-											last = cols[i]
+								// draw alive cells into the image (sparse fast path)
+								if ap, ok := interface{}(board).(aliveProvider); ok {
+									fmt.Println("Using aliveProvider for rendering")
+									fmt.Println("Min/Max Rows/Cols:", minRow, maxRow, minCol, maxCol)
+
+									// Bucket cells by row so we can draw contiguous runs more efficiently.
+									colsByRow := map[int][]int{}
+									for _, p := range ap.AliveCells() {
+										r := p[0]
+										c := p[1]
+										if r < minRow || r >= maxRow || c < minCol || c >= maxCol {
 											continue
 										}
-										// draw run start..last
+										colsByRow[r] = append(colsByRow[r], c)
+									}
+									fillCol := image.NewUniform(color.NRGBA{R: 0, G: 200, B: 0, A: 255})
+									for r, cols := range colsByRow {
+										if len(cols) == 0 {
+											continue
+										}
+										sort.Ints(cols)
+										start := cols[0]
+										last := start
+										y := margin + (r-minRow)*cellSize
+										for i := 1; i < len(cols); i++ {
+											if cols[i] == last || cols[i] == last+1 {
+												last = cols[i]
+												continue
+											}
+											// draw run start..last
+											x := margin + (start-minCol)*cellSize
+											wPixels := (last - start + 1) * cellSize
+											rect := image.Rect(x, y, x+wPixels, y+cellSize)
+											draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
+											start = cols[i]
+											last = cols[i]
+										}
+										// final run
 										x := margin + (start-minCol)*cellSize
 										wPixels := (last - start + 1) * cellSize
 										rect := image.Rect(x, y, x+wPixels, y+cellSize)
 										draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
-										start = cols[i]
-										last = cols[i]
 									}
-									// final run
-									x := margin + (start-minCol)*cellSize
-									wPixels := (last - start + 1) * cellSize
-									rect := image.Rect(x, y, x+wPixels, y+cellSize)
-									draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
-								}
-							} else {
-								// fallback viewport scan with run grouping
-								fillCol := image.NewUniform(color.NRGBA{R: 0, G: 200, B: 0, A: 255})
-								for i := minRow; i < maxRow; i++ {
-									y := margin + (i-minRow)*cellSize
-									j := minCol
-									for j < maxCol {
-										if !board.At(i, j) {
+								} else {
+									// fallback viewport scan with run grouping
+									fillCol := image.NewUniform(color.NRGBA{R: 0, G: 200, B: 0, A: 255})
+									for i := minRow; i < maxRow; i++ {
+										y := margin + (i-minRow)*cellSize
+										j := minCol
+										for j < maxCol {
+											if !board.At(i, j) {
+												j++
+												continue
+											}
+											start := j
 											j++
-											continue
+											for j < maxCol && board.At(i, j) {
+												j++
+											}
+											x := margin + (start-minCol)*cellSize
+											wPixels := (j - start) * cellSize
+											rect := image.Rect(x, y, x+wPixels, y+cellSize)
+											draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
 										}
-										start := j
-										j++
-										for j < maxCol && board.At(i, j) {
-											j++
-										}
-										x := margin + (start-minCol)*cellSize
-										wPixels := (j - start) * cellSize
-										rect := image.Rect(x, y, x+wPixels, y+cellSize)
-										draw.Draw(img, rect, fillCol, image.Point{}, draw.Src)
 									}
 								}
+
+								// draw grid lines into image
+								gridCol := image.NewUniform(color.NRGBA{R: 180, G: 180, B: 180, A: 255})
+								// horizontal lines
+								for i := 0; i <= (maxRow - minRow); i++ {
+									y := margin + i*cellSize
+									rect := image.Rect(margin, y, margin+(maxCol-minCol)*cellSize, y+1)
+									draw.Draw(img, rect, gridCol, image.Point{}, draw.Src)
+								}
+								// vertical lines
+								for j := 0; j <= (maxCol - minCol); j++ {
+									x := margin + j*cellSize
+									rect := image.Rect(x, margin, x+1, margin+(maxRow-minRow)*cellSize)
+									draw.Draw(img, rect, gridCol, image.Point{}, draw.Src)
+								}
+
+								// store cache
+								cache.img = img
+								cache.turn = game.Turn
+								cache.panX = panX
+								cache.panY = panY
+								cache.zoom = zoomLevel
+								cache.width = width
+								cache.height = height
+								cache.cellSize = cellSize
 							}
 
-							// draw grid lines into image
-							gridCol := image.NewUniform(color.NRGBA{R: 180, G: 180, B: 180, A: 255})
-							// horizontal lines
-							for i := 0; i <= (maxRow - minRow); i++ {
-								y := margin + i*cellSize
-								rect := image.Rect(margin, y, margin+(maxCol-minCol)*cellSize, y+1)
-								draw.Draw(img, rect, gridCol, image.Point{}, draw.Src)
-							}
-							// vertical lines
-							for j := 0; j <= (maxCol - minCol); j++ {
-								x := margin + j*cellSize
-								rect := image.Rect(x, margin, x+1, margin+(maxRow-minRow)*cellSize)
-								draw.Draw(img, rect, gridCol, image.Point{}, draw.Src)
+							// paint cached image (single image op)
+							if cache.img != nil {
+								op.Offset(image.Pt(panX+margin, panY+margin)).Add(gtx.Ops)
+
+								paint.NewImageOp(cache.img).Add(gtx.Ops)
+								paint.PaintOp{}.Add(gtx.Ops)
 							}
 
-							// store cache
-							cache.img = img
-							cache.turn = game.Turn
-							cache.panX = panX
-							cache.panY = panY
-							cache.zoom = zoomLevel
-							cache.width = width
-							cache.height = height
-							cache.cellSize = cellSize
-						}
-
-						// paint cached image (single image op)
-						if cache.img != nil {
-							paint.NewImageOp(cache.img).Add(gtx.Ops)
-							paint.PaintOp{}.Add(gtx.Ops)
-						}
-
-						return D{Size: image.Pt(width, height)}
+							return D{Size: image.Pt(width, height)}
+						})
 					})
 				}),
 				layout.Rigid(func(gtx C) D {
