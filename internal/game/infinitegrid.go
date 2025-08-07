@@ -1,10 +1,7 @@
-package main
+package game
 
-import (
-	"flag"
-	"fmt"
-	"os"
-)
+// Cell represents a single cell in the Game of Life grid.
+type Cell bool
 
 // InfiniteGrid represents a sparse, infinite board using a map.
 type InfiniteGrid struct {
@@ -109,93 +106,4 @@ func (g *InfiniteGrid) AliveCells() [][2]int {
 		out = append(out, k)
 	}
 	return out
-}
-
-// Cell represents a single cell in the Game of Life grid.
-type Cell bool
-
-// Game holds the state of the Game of Life, including double-buffered boards.
-type Game struct {
-	// BoardA and BoardB are used for double buffering whereby one Board is the current board,
-	// and the other is the next generation. This allows for efficient updates without needing
-	// to copy the entire grid each generation.
-	BoardA InfiniteGrid
-	BoardB InfiniteGrid
-	// UseA indicates which board is currently active.
-	UseA bool
-	// Turn is the current turn number.
-	Turn int
-}
-
-// Tick advances the game by one generation, applying the Game of Life rules.
-func (g *Game) Tick() {
-	// If BoardA is InfiniteGrid, use infinite tick logic
-	g.TickInfinite()
-}
-
-// TickInfinite advances the game by one generation for InfiniteGrid.
-func (g *Game) TickInfinite() {
-	var src, dst *InfiniteGrid
-	if g.UseA {
-		src = &g.BoardA
-		dst = &g.BoardB
-	} else {
-		src = &g.BoardB
-		dst = &g.BoardA
-	}
-
-	// Clear destination
-	dst.Cells = make(map[[2]int]Cell)
-	neighborCounts := make(map[[2]int]int)
-
-	// Count neighbors for all live cells and their neighbors
-	for pos := range src.Cells {
-		r, c := pos[0], pos[1]
-		for dr := -1; dr <= 1; dr++ {
-			for dc := -1; dc <= 1; dc++ {
-				if dr == 0 && dc == 0 {
-					continue
-				}
-				npos := [2]int{r + dr, c + dc}
-				neighborCounts[npos]++
-			}
-		}
-	}
-	// Apply rules
-	for pos, count := range neighborCounts {
-		alive := src.Cells[pos]
-		var next Cell
-		if alive {
-			next = count == 2 || count == 3
-		} else {
-			next = count == 3
-		}
-		if next {
-			dst.Cells[pos] = true
-		}
-	}
-	g.UseA = !g.UseA
-	g.Turn++
-}
-
-func main() {
-	rleFile := flag.String("rle", "", "Path to RLE file to import as initial pattern")
-	flag.Parse()
-
-	var imported *InfiniteGrid
-	if *rleFile != "" {
-		f, err := os.Open(*rleFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to open RLE file: %v\n", err)
-			os.Exit(1)
-		}
-		defer f.Close()
-		b, err := ImportRLE(f)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to import RLE: %v\n", err)
-			os.Exit(1)
-		}
-		imported = &b
-	}
-	RunGUI(imported)
 }
