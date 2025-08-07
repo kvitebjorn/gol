@@ -68,7 +68,7 @@ func computeDynamicView(gtx layout.Context,
 	margin,
 	width,
 	height int) {
-	availableWidth := gtx.Constraints.Max.X - 2*gtx.Dp(unit.Dp(10))
+	availableWidth := gtx.Constraints.Max.X
 	availableHeight := gtx.Constraints.Max.Y
 
 	// Determine desired cell size
@@ -166,16 +166,16 @@ func runWindow(w *app.Window) error {
 				if kev, ok := ev.(key.Event); ok {
 					switch kev.Name {
 					case key.NameUpArrow:
-						panY -= 2
+						panY -= 4
 						changed = true
 					case key.NameDownArrow:
-						panY += 2
+						panY += 4
 						changed = true
 					case key.NameLeftArrow:
-						panX -= 2
+						panX -= 4
 						changed = true
 					case key.NameRightArrow:
-						panX += 2
+						panX += 4
 						changed = true
 					case "+":
 						old := zoomLevel
