@@ -57,11 +57,6 @@ var (
 	panY      = 0   // in cells
 )
 
-// Used to provide a fast path for rendering alive cells in the view.
-type aliveProvider interface {
-	AliveCells() [][2]int
-}
-
 func computeDynamicView(gtx layout.Context,
 	zoom float64,
 	panX, panY int) (
