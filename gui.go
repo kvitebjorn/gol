@@ -343,7 +343,18 @@ func runWindow(w *app.Window) error {
 
 										clickPos := x.Position
 
+										toggleCell := true
+										if playing && !paused {
+											toggleCell = false
+										}
 										stopPlayback()
+
+										if !toggleCell {
+											// If playing, we don't toggle cells on click
+											// but rather just stop playback.
+											// This allows us to avoid expensive concurrent map structures :P
+											break
+										}
 
 										clickX, clickY := clickPos.X, clickPos.Y
 										minRow, minCol, _, _, cellSize, _, _, _ := computeDynamicView(gtx, zoomLevel, panX, panY)
