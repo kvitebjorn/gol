@@ -121,7 +121,8 @@ func HandleControlClicks(gtx C, cache *viewCache, w *app.Window) {
 	if importButton.Clicked(gtx) && !fileDialogActive {
 		fileDialogActive = true
 		go func(win *app.Window) {
-			r, err := explorerInstance.ChooseFile(".rle")
+			explorer := GetExplorerInstance(win)
+			r, err := explorer.ChooseFile(".rle")
 			if err != nil {
 				fileReadErr = err
 				fileDialogActive = false

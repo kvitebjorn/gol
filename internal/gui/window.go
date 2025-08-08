@@ -8,7 +8,6 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/widget/material"
-	"gioui.org/x/explorer"
 	"github.com/kvitebjorn/gol/internal/util"
 )
 
@@ -21,14 +20,12 @@ func runWindow(w *app.Window) error {
 
 	var cache viewCache
 
-	if explorerInstance == nil {
-		explorerInstance = explorer.NewExplorer(w)
-	}
+	explorer := GetExplorerInstance(w)
 
 	for {
 		e := w.Event()
-		if explorerInstance != nil {
-			explorerInstance.ListenEvents(e)
+		if explorer != nil {
+			explorer.ListenEvents(e)
 		}
 
 		switch evt := e.(type) {

@@ -2,7 +2,9 @@ package gui
 
 import (
 	"image"
+	"sync"
 
+	"gioui.org/app"
 	"gioui.org/widget"
 	"gioui.org/x/explorer"
 	"github.com/kvitebjorn/gol/internal/game"
@@ -40,10 +42,19 @@ var (
 	// File dialog related
 	fileReadErr      error
 	fileDialogActive bool
-
-	// ONLY INITIALIZE THIS ONCE!!!
-	explorerInstance *explorer.Explorer
 )
+
+var (
+	explorerInstance *explorer.Explorer
+	once             sync.Once
+)
+
+func GetExplorerInstance(w *app.Window) *explorer.Explorer {
+	once.Do(func() {
+		explorerInstance = explorer.NewExplorer(w)
+	})
+	return explorerInstance
+}
 
 func stopPlayback() {
 	if playing {
