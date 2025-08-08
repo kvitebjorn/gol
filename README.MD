@@ -14,8 +14,6 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 
 ### Usage
 
-Get the program:
-
 ```sh
 go install github.com/kvitebjorn/gol@latest
 ```
