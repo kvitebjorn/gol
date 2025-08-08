@@ -83,7 +83,7 @@ func HandleControlClicks(gtx C, cache *viewCache, w *app.Window) {
 							select {
 							case <-stopCh:
 								return
-							case <-time.After(50 * time.Millisecond):
+							case <-time.After(10 * time.Millisecond):
 							}
 						} else {
 							select {

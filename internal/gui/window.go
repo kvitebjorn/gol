@@ -2,7 +2,6 @@ package gui
 
 import (
 	"fmt"
-	"os"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -57,7 +56,7 @@ func runWindow(w *app.Window) error {
 			)
 
 			if fileReadErr != nil {
-				fmt.Fprintf(os.Stderr, "Failed to import RLE: %v\n", fileReadErr)
+				// TODO: log
 			}
 
 			evt.Frame(gtx.Ops)
