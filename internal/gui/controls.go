@@ -82,10 +82,19 @@ func HandleControlClicks(gtx C, cache *viewCache, w *app.Window) {
 							win.Invalidate()
 							select {
 							case <-stopCh:
+								fps = 0
 								return
 							case <-time.After(10 * time.Millisecond):
+								frameCount += 1
+								elapsed := time.Since(startTime)
+								if elapsed >= time.Second {
+									fps = float64(frameCount) / elapsed.Seconds()
+									startTime = time.Now()
+									frameCount = 0
+								}
 							}
 						} else {
+							fps = 0
 							select {
 							case <-stopCh:
 								return

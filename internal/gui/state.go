@@ -3,6 +3,7 @@ package gui
 import (
 	"image"
 	"sync"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/f32"
@@ -45,6 +46,11 @@ var (
 	// File dialog related
 	fileReadErr      error
 	fileDialogActive bool
+
+	// Metrics
+	startTime  time.Time
+	frameCount int
+	fps        float64
 )
 
 var (
