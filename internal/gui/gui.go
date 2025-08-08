@@ -8,12 +8,6 @@ import (
 	"github.com/kvitebjorn/gol/internal/game"
 )
 
-var (
-	gameState    game.Game         // Global game state
-	initialBoard game.InfiniteGrid // For reset
-)
-
-// RunGUI launches a minimal Game of Life GUI. Right arrow advances one tick.
 func RunGUI(imported *game.InfiniteGrid) {
 	go func() {
 		w := new(app.Window)
@@ -33,7 +27,9 @@ func RunGUI(imported *game.InfiniteGrid) {
 				ig.Set(p[0], p[1], true)
 			}
 		}
+
 		initialBoard = ig.DeepCopy()
+
 		gameState = game.Game{
 			BoardA: initialBoard.DeepCopy(),
 			BoardB: initialBoard.DeepCopy(),
