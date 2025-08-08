@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"gioui.org/app"
+	"gioui.org/f32"
 	"gioui.org/widget"
 	"gioui.org/x/explorer"
 	"github.com/kvitebjorn/gol/internal/game"
@@ -25,6 +26,8 @@ var (
 	// Pan and zoom
 	panX, panY int
 	zoomLevel  float64 = 1.0
+	isDragging bool
+	dragStart  f32.Point
 
 	// Playback state
 	playing    bool

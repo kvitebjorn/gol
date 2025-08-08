@@ -5,8 +5,8 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 - A sparse map-based "infinite" grid that can grow dynamically during runtime
 - A minimal GUI
   - Zoom with -/+
-  - Pan with arrow keys
-  - Edit cells with a click
+  - Pan with arrow keys or secondary button drag
+  - Edit cells with a primary button click
   - 20 fps
 - RLE support 
 - Test suite for common patterns (still lifes, oscillators, spaceships)
