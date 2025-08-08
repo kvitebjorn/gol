@@ -14,18 +14,10 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 
 ### Usage
 
-Run the program:
+Get the program:
 
 ```sh
-go run main.go
-```
-
-### Testing
-
-Run all tests:
-
-```sh
-go test
+go install github.com/kvitebjorn/gol@latest
 ```
 
 ### Features
