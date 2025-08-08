@@ -86,7 +86,7 @@ func runWindow(w *app.Window) error {
 				cache.img = nil
 			}
 
-			HandleControlClicks(gtx, w)
+			HandleControlClicks(gtx, &cache, w)
 
 			layout.Flex{
 				Axis: layout.Vertical,

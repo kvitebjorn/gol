@@ -65,7 +65,7 @@ func LayoutControls(gtx layout.Context, th *material.Theme, w *app.Window) layou
 	})
 }
 
-func HandleControlClicks(gtx C, w *app.Window) {
+func HandleControlClicks(gtx C, cache *viewCache, w *app.Window) {
 	if playPauseButton.Clicked(gtx) {
 		if !playing {
 			playing = true
@@ -83,7 +83,7 @@ func HandleControlClicks(gtx C, w *app.Window) {
 							select {
 							case <-stopCh:
 								return
-							case <-time.After(25 * time.Millisecond):
+							case <-time.After(50 * time.Millisecond):
 							}
 						} else {
 							select {
@@ -144,6 +144,7 @@ func HandleControlClicks(gtx C, w *app.Window) {
 				zoomLevel = 1.0
 				panX = 0
 				panY = 0
+				cache.img = nil
 				win.Invalidate()
 			}
 			fileDialogActive = false
