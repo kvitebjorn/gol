@@ -1,5 +1,7 @@
 package game
 
+import "maps"
+
 // Cell represents a single cell in the Game of Life grid.
 type Cell bool
 
@@ -87,9 +89,7 @@ func (g *InfiniteGrid) Bounds() (minRow, minCol, maxRow, maxCol int) {
 // DeepCopy returns a deep copy of the InfiniteGrid.
 func (g InfiniteGrid) DeepCopy() InfiniteGrid {
 	copy := NewInfiniteGrid()
-	for k, v := range g.Cells {
-		copy.Cells[k] = v
-	}
+	maps.Copy(copy.Cells, g.Cells)
 	copy.minRow = g.minRow
 	copy.maxRow = g.maxRow
 	copy.minCol = g.minCol

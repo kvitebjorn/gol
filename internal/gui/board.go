@@ -18,13 +18,7 @@ func computeDynamicView(gtx layout.Context, zoom float64, panX, panY int) (
 	availableHeight := gtx.Constraints.Max.Y
 
 	cellSizeF := zoom * 20
-	cellSize = int(cellSizeF)
-	if cellSize > 50 {
-		cellSize = 50
-	}
-	if cellSize < 2 {
-		cellSize = 2
-	}
+	cellSize = max(min(int(cellSizeF), 50), 2)
 
 	cols := availableWidth / cellSize
 	rows := availableHeight / cellSize
