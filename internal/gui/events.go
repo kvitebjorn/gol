@@ -121,9 +121,20 @@ func HandleBoardEvents(gtx C, cache *viewCache, w *app.Window) {
 				}
 
 			case pointer.Scroll:
-				dir := x.Scroll.Y
-				if dir == -1 {
-
+				if x.Scroll.Y == 0 {
+					break
+				}
+				dy := float64(x.Scroll.Y)
+				oldZoom := zoomLevel
+				zoomLevel *= 1.0 - dy/100.0*10
+				if zoomLevel < 0.1 {
+					zoomLevel = 0.1
+				} else if zoomLevel > 4 {
+					zoomLevel = 4
+				}
+				if zoomLevel != oldZoom {
+					cache.img = nil
+					w.Invalidate()
 				}
 			}
 		}
