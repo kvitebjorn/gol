@@ -7,7 +7,7 @@ This project is a high-performance implementation of Conway's Game of Life in Go
   - Zoom with -/+ or the mouse wheel
   - Pan with arrow keys or secondary button drag
   - Edit cells with a primary button click
-  - 20 fps
+  - 20~ fps on large patterns on a decent machine
 - RLE support 
 - Test suite for common patterns (still lifes, oscillators, spaceships)
 

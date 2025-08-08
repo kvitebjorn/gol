@@ -43,7 +43,7 @@ func runWindow(w *app.Window) error {
 			}.Layout(gtx,
 				layout.Rigid(func(gtx C) D {
 					gen := gameState.Turn
-					label := material.H6(th, fmt.Sprintf("Generation: %s  fps: %.1f", util.Itoa(gen), fps))
+					label := material.H6(th, fmt.Sprintf("Generation: %s  [%.1f fps]", util.Itoa(gen), fps))
 					return layout.Center.Layout(gtx, label.Layout)
 				}),
 				layout.Rigid(func(gtx C) D {
