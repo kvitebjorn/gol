@@ -8,7 +8,6 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/io/event"
-	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op/paint"
 )
@@ -51,8 +50,6 @@ func LayoutBoard(
 	zoomLevel float64,
 	panX, panY int,
 	w *app.Window) layout.Dimensions {
-	board := gameState.CurrentBoard()
-
 	minRow, minCol, maxRow, maxCol, cellSize, margin, width, height :=
 		computeDynamicView(gtx, zoomLevel, panX, panY)
 
@@ -70,48 +67,7 @@ func LayoutBoard(
 		return boardClickable.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			event.Op(gtx.Ops, boardTag)
 
-			for {
-				ev, ok := gtx.Event(pointer.Filter{
-					Target: boardTag,
-					Kinds:  pointer.Press,
-				})
-				if !ok {
-					break
-				}
-
-				if x, ok := ev.(pointer.Event); ok {
-					switch x.Kind {
-					case pointer.Press:
-						clickPos := x.Position
-
-						toggleCell := true
-						if playing && !paused {
-							toggleCell = false
-						}
-						stopPlayback()
-
-						if !toggleCell {
-							break
-						}
-
-						clickX, clickY := clickPos.X, clickPos.Y
-						minRow, minCol, _, _, cellSize, _, _, _ :=
-							computeDynamicView(gtx, zoomLevel, panX, panY)
-
-						cellCol := int(clickX) / cellSize
-						cellRow := int(clickY) / cellSize
-
-						row := minRow + cellRow
-						col := minCol + cellCol
-
-						cur := board.At(row, col)
-						board.Set(row, col, !cur)
-
-						cache.img = nil
-						w.Invalidate()
-					}
-				}
-			}
+			HandleBoardEvents(gtx, cache, w)
 
 			useCache := cache.img != nil &&
 				cache.turn == gameState.Turn &&
@@ -128,8 +84,10 @@ func LayoutBoard(
 				bg := image.NewUniform(color.NRGBA{R: 220, G: 220, B: 220, A: 255})
 				draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src)
 
+				// Render an entire row at once
+				// This is more efficient than rendering cell by cell!
 				colsByRow := map[int][]int{}
-				for _, p := range board.AliveCells() {
+				for _, p := range gameState.CurrentBoard().AliveCells() {
 					r := p[0]
 					c := p[1]
 					if r < minRow || r >= maxRow || c < minCol || c >= maxCol {

@@ -22,6 +22,7 @@ func runWindow(w *app.Window) error {
 
 	explorer := GetExplorerInstance(w)
 
+	// Main render loop
 	for {
 		e := w.Event()
 		if explorer != nil {
