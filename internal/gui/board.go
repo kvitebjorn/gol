@@ -86,13 +86,11 @@ func LayoutBoard(
 
 				// Render an entire row at once
 				// This is more efficient than rendering cell by cell!
+				// And only render alive cells within the view port!!!
 				colsByRow := map[int][]int{}
-				for _, p := range gameState.CurrentBoard().AliveCells() {
+				for _, p := range gameState.CurrentBoard().AliveCellsWithinBounds(minCol, minRow, maxCol, maxRow) {
 					r := p[0]
 					c := p[1]
-					if r < minRow || r >= maxRow || c < minCol || c >= maxCol {
-						continue
-					}
 					colsByRow[r] = append(colsByRow[r], c)
 				}
 

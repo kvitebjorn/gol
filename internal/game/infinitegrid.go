@@ -107,3 +107,15 @@ func (g *InfiniteGrid) AliveCells() [][2]int {
 	}
 	return out
 }
+
+func (g *InfiniteGrid) AliveCellsWithinBounds(minCol, minRow, maxCol, maxRow int) [][2]int {
+	out := make([][2]int, 0)
+	for k := range g.Cells {
+		r, c := k[0], k[1]
+		if r < minRow || r >= maxRow || c < minCol || c >= maxCol {
+			continue
+		}
+		out = append(out, k)
+	}
+	return out
+}
