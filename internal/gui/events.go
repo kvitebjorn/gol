@@ -61,8 +61,9 @@ func HandleEvents(gtx C, cache *viewCache, w *app.Window) {
 func HandleBoardEvents(gtx C, cache *viewCache, w *app.Window) {
 	for {
 		ev, ok := gtx.Event(pointer.Filter{
-			Target: boardTag,
-			Kinds:  pointer.Press | pointer.Release | pointer.Drag,
+			Target:  boardTag,
+			Kinds:   pointer.Press | pointer.Release | pointer.Drag | pointer.Scroll,
+			ScrollY: pointer.ScrollRange{Min: -1, Max: 1},
 		})
 		if !ok {
 			break
@@ -117,6 +118,12 @@ func HandleBoardEvents(gtx C, cache *viewCache, w *app.Window) {
 
 					cache.img = nil
 					w.Invalidate()
+				}
+
+			case pointer.Scroll:
+				dir := x.Scroll.Y
+				if dir == -1 {
+
 				}
 			}
 		}
