@@ -15,12 +15,6 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 
 ![Screenshot](assets/gol.png)
 
-### Usage
-
-```sh
-go install github.com/kvitebjorn/gol@latest
-```
-
 ### License
 
 MIT License
