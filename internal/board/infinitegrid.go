@@ -1,4 +1,4 @@
-package game
+package board
 
 import "maps"
 
@@ -8,12 +8,12 @@ type Cell bool
 // InfiniteGrid represents a sparse, infinite board using a map.
 type InfiniteGrid struct {
 	Cells                          map[[2]int]Cell // key: [row, col], value: alive/dead
-	minRow, minCol, maxRow, maxCol int
-	boundsValid                    bool
+	MinRow, MinCol, MaxRow, MaxCol int
+	BoundsValid                    bool
 }
 
 func NewInfiniteGrid() InfiniteGrid {
-	return InfiniteGrid{Cells: make(map[[2]int]Cell), boundsValid: false}
+	return InfiniteGrid{Cells: make(map[[2]int]Cell), BoundsValid: false}
 }
 
 func (g *InfiniteGrid) At(row, col int) Cell {
@@ -25,18 +25,18 @@ func (g *InfiniteGrid) Set(row, col int, val Cell) {
 	if val {
 		if _, exists := g.Cells[key]; !exists {
 			g.Cells[key] = true
-			if g.boundsValid {
-				if row < g.minRow {
-					g.minRow = row
+			if g.BoundsValid {
+				if row < g.MinRow {
+					g.MinRow = row
 				}
-				if row > g.maxRow {
-					g.maxRow = row
+				if row > g.MaxRow {
+					g.MaxRow = row
 				}
-				if col < g.minCol {
-					g.minCol = col
+				if col < g.MinCol {
+					g.MinCol = col
 				}
-				if col > g.maxCol {
-					g.maxCol = col
+				if col > g.MaxCol {
+					g.MaxCol = col
 				}
 			}
 		}
@@ -44,14 +44,14 @@ func (g *InfiniteGrid) Set(row, col int, val Cell) {
 		if _, exists := g.Cells[key]; exists {
 			delete(g.Cells, key)
 			// Removing a cell may invalidate bounds
-			g.boundsValid = false
+			g.BoundsValid = false
 		}
 	}
 }
 
 func (g *InfiniteGrid) Bounds() (minRow, minCol, maxRow, maxCol int) {
-	if g.boundsValid {
-		return g.minRow, g.minCol, g.maxRow, g.maxCol
+	if g.BoundsValid {
+		return g.MinRow, g.MinCol, g.MaxRow, g.MaxCol
 	}
 	first := true
 	for k := range g.Cells {
@@ -76,13 +76,13 @@ func (g *InfiniteGrid) Bounds() (minRow, minCol, maxRow, maxCol int) {
 		}
 	}
 	if !first {
-		g.minRow, g.minCol, g.maxRow, g.maxCol = minRow, minCol, maxRow, maxCol
-		g.boundsValid = true
+		g.MinRow, g.MinCol, g.MaxRow, g.MaxCol = minRow, minCol, maxRow, maxCol
+		g.BoundsValid = true
 		return minRow, minCol, maxRow, maxCol
 	}
 	// No live cells
-	g.boundsValid = true
-	g.minRow, g.maxRow, g.minCol, g.maxCol = 0, 0, 0, 0
+	g.BoundsValid = true
+	g.MinRow, g.MaxRow, g.MinCol, g.MaxCol = 0, 0, 0, 0
 	return 0, 0, 0, 0
 }
 
@@ -90,11 +90,11 @@ func (g *InfiniteGrid) Bounds() (minRow, minCol, maxRow, maxCol int) {
 func (g InfiniteGrid) DeepCopy() InfiniteGrid {
 	copy := NewInfiniteGrid()
 	maps.Copy(copy.Cells, g.Cells)
-	copy.minRow = g.minRow
-	copy.maxRow = g.maxRow
-	copy.minCol = g.minCol
-	copy.maxCol = g.maxCol
-	copy.boundsValid = g.boundsValid
+	copy.MinRow = g.MinRow
+	copy.MaxRow = g.MaxRow
+	copy.MinCol = g.MinCol
+	copy.MaxCol = g.MaxCol
+	copy.BoundsValid = g.BoundsValid
 	return copy
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kvitebjorn/gol/internal/board"
 	"github.com/kvitebjorn/gol/internal/game"
 	"github.com/kvitebjorn/gol/internal/gpu"
 	"github.com/kvitebjorn/gol/internal/gui"
@@ -12,16 +13,12 @@ import (
 )
 
 func main() {
-	// TODO TESTING GPU STUFF REMOVE THIS
-	a := []float32{1.0, 2.0, 3.0}
-	gpu.Square(a)
-	fmt.Println(a)
-	// END TODO
+	game.UseGpu = gpu.GPUAvailable()
 
 	rleFile := flag.String("rle", "", "Path to RLE file to import as initial pattern")
 	flag.Parse()
 
-	var imported *game.InfiniteGrid
+	var imported *board.InfiniteGrid
 	if *rleFile != "" {
 		f, err := os.Open(*rleFile)
 		if err != nil {

@@ -5,16 +5,17 @@ import (
 	"os"
 
 	"gioui.org/app"
+	"github.com/kvitebjorn/gol/internal/board"
 	"github.com/kvitebjorn/gol/internal/game"
 )
 
-func RunGUI(imported *game.InfiniteGrid) {
+func RunGUI(imported *board.InfiniteGrid) {
 	go func() {
 		w := new(app.Window)
 		w.Option(app.Title("Game of Life"))
 		w.Option(app.Maximized.Option())
 
-		var ig game.InfiniteGrid
+		var ig board.InfiniteGrid
 		if imported != nil {
 			ig = imported.DeepCopy()
 		} else {
@@ -22,7 +23,7 @@ func RunGUI(imported *game.InfiniteGrid) {
 			initial := [][2]int{
 				{0, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2},
 			}
-			ig = game.NewInfiniteGrid()
+			ig = board.NewInfiniteGrid()
 			for _, p := range initial {
 				ig.Set(p[0], p[1], true)
 			}

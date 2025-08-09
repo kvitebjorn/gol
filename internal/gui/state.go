@@ -9,6 +9,7 @@ import (
 	"gioui.org/f32"
 	"gioui.org/widget"
 	"gioui.org/x/explorer"
+	"github.com/kvitebjorn/gol/internal/board"
 	"github.com/kvitebjorn/gol/internal/game"
 )
 
@@ -37,7 +38,7 @@ var (
 
 	// Game state
 	gameState    game.Game
-	initialBoard game.InfiniteGrid
+	initialBoard board.InfiniteGrid
 
 	// Board clickable tag
 	boardTag       = new(bool)

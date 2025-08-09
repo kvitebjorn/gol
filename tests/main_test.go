@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/kvitebjorn/gol/internal/board"
 	"github.com/kvitebjorn/gol/internal/game"
 )
 
@@ -16,7 +17,7 @@ func TestBlinkerOscillator(t *testing.T) {
 		{false, false, false, false, false},
 	}
 	boardA := makeInfiniteGrid(start)
-	boardB := game.NewInfiniteGrid()
+	boardB := board.NewInfiniteGrid()
 	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 
 	// Save initial state
@@ -47,7 +48,7 @@ func TestToadOscillator(t *testing.T) {
 		{false, false, false, false, false, false},
 	}
 	boardA := makeInfiniteGrid(start)
-	boardB := game.NewInfiniteGrid()
+	boardB := board.NewInfiniteGrid()
 	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 	initial := boardA.DeepCopy()
 	game.Tick()
@@ -71,7 +72,7 @@ func TestGliderSpaceship(t *testing.T) {
 		{false, false, false, false, false},
 	}
 	boardA := makeInfiniteGrid(start)
-	boardB := game.NewInfiniteGrid()
+	boardB := board.NewInfiniteGrid()
 	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 	seen := make(map[string]bool)
 	for i := 0; i < 4; i++ {
@@ -111,7 +112,7 @@ func TestDiehardPattern(t *testing.T) {
 	start[row+2][col+6] = true // (4,12)
 	start[row+2][col+7] = true // (4,13)
 	boardA := makeInfiniteGrid(start)
-	boardB := game.NewInfiniteGrid()
+	boardB := board.NewInfiniteGrid()
 	game := game.Game{BoardA: boardA, BoardB: boardB, UseA: true, Turn: 1}
 	maxTicks := 200
 	allDead := false

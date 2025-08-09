@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kvitebjorn/gol/internal/game"
+	"github.com/kvitebjorn/gol/internal/board"
 )
 
 // ImportRLE parses an RLE file and returns an InfiniteGrid with the pattern.
-func ImportRLE(r io.Reader) (game.InfiniteGrid, error) {
+func ImportRLE(r io.Reader) (board.InfiniteGrid, error) {
 	scanner := bufio.NewScanner(r)
 	var header string
 	var rows, cols int
@@ -29,7 +29,7 @@ func ImportRLE(r io.Reader) (game.InfiniteGrid, error) {
 			header = line
 			m := headerRe.FindStringSubmatch(header)
 			if m == nil {
-				return game.InfiniteGrid{}, errors.New("invalid RLE header")
+				return board.InfiniteGrid{}, errors.New("invalid RLE header")
 			}
 			cols, _ = strconv.Atoi(m[1])
 			rows, _ = strconv.Atoi(m[2])
@@ -38,9 +38,9 @@ func ImportRLE(r io.Reader) (game.InfiniteGrid, error) {
 		dataLines = append(dataLines, line)
 	}
 	if rows == 0 || cols == 0 {
-		return game.InfiniteGrid{}, errors.New("missing RLE header")
+		return board.InfiniteGrid{}, errors.New("missing RLE header")
 	}
-	ig := game.NewInfiniteGrid()
+	ig := board.NewInfiniteGrid()
 	x, y := 0, 0
 	rle := strings.Join(dataLines, "")
 	num := 0
@@ -80,7 +80,7 @@ parseLoop:
 
 // ExportRLE writes the InfiniteGrid as an RLE pattern to the writer.
 // The exported region is the bounding box of all live cells.
-func ExportRLE(w io.Writer, g game.InfiniteGrid) error {
+func ExportRLE(w io.Writer, g board.InfiniteGrid) error {
 	minRow, minCol, maxRow, maxCol := g.Bounds()
 	rows := maxRow - minRow + 1
 	cols := maxCol - minCol + 1
