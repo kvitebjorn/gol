@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	game.UseGpu = gpu.GPUAvailable()
+	game.UseGpu = gpu.HasCUDA()
 
 	rleFile := flag.String("rle", "", "Path to RLE file to import as initial pattern")
 	flag.Parse()

@@ -137,14 +137,3 @@ extern "C"
     cudaFree(dst_d);
   }
 }
-
-extern "C" int gpu_available()
-{
-  int count = 0;
-  cudaError_t err = cudaGetDeviceCount(&count);
-  if (err != cudaSuccess)
-  {
-    return 0; // No device or CUDA runtime error
-  }
-  return count > 0;
-}

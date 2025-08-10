@@ -79,7 +79,3 @@ func Tick(src, dst *board.InfiniteGrid) {
 		dst.MinRow, dst.MaxRow, dst.MinCol, dst.MaxCol = 0, 0, 0, 0
 	}
 }
-
-func GPUAvailable() bool {
-	return C.gpu_available() > 0
-}
