@@ -21,13 +21,8 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 - If an NVIDIA driver + at least one CUDA-capable GPU is present, GPU mode is used.
 - Otherwise, CPU mode is used.
 
-```bash
-go build
-```
-
-If you have CUDA installed, you need to go to the `internal/gpu` dir and follow those instructions before running `go build`.
-
-This requires the CUDA toolkit and dev libraries installed. See the `gpu` package README for further details.
+## Build
+In order to build this project, you currently *must* install the CUDA Toolkit and build the `.so`. Follow the instructions in `internal/gpu`.
 
 ### License
 
