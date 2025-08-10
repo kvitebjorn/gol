@@ -25,11 +25,7 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 go build
 ```
 
-If you have CUDA installed, you need to export LD_LIBRARY_PATH before building
-
-```
-export LD_LIBRARY_PATH=/home/kyle/dev/github.com/kvitebjorn/gol/internal/gpu:$LD_LIBRARY_PATH
-```
+If you have CUDA installed, you need to go to the `internal/gpu` dir and follow those instructions before running `go build`.
 
 This requires the CUDA toolkit and dev libraries installed. See the `gpu` package README for further details.
 
