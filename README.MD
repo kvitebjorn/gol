@@ -24,10 +24,11 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 
 ## Build
 In order to build this project from source, you *must* install the CUDA Toolkit and build the `.so`. 
-
 Follow the instructions in `internal/gpu`.
 
-Otherwise, grab a release!
+You could also download one of the `.so`s from a Release and point to that, instead of `make`ing it yourself.
+
+Otherwise, grab a release and run `start.sh`!
 
 ### License
 
