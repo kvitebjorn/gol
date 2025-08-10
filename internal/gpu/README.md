@@ -25,7 +25,7 @@ Then follow the post-installation actions here: https://docs.nvidia.com/cuda/cud
 
 ## In this dir: 
 
-Make sure `CUDA_LIB_PATH` is correct in `Makefile`, then run
+Make sure `CUDA_LIB` is correct in `Makefile`, then run
 
 ```
 make
