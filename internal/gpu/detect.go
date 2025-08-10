@@ -8,7 +8,7 @@ package gpu
 // typedef int (*cuInit_t)(unsigned int);
 // typedef int (*cuDeviceGetCount_t)(int*);
 //
-// // Return 1 if CUDA driver + at least one device is present, 0 otherwise.
+// // Return 1 if CUDA driver + CUDA runtime + at least one device is present, 0 otherwise.
 // static int detect_cuda() {
 //     void *h = dlopen("libcuda.so", RTLD_LAZY | RTLD_LOCAL);
 //     if (!h) {
@@ -17,6 +17,12 @@ package gpu
 //         if (!h) {
 //             return 0;
 //         }
+//     }
+//
+//     // We have a hard dependency on the runtime too, so it must be present.
+//     void *rt = dlopen("libcudart.so", RTLD_LAZY | RTLD_LOCAL);
+//     if (!rt) {
+//         return 0;
 //     }
 //
 //     cuInit_t p_cuInit = (cuInit_t)dlsym(h, "cuInit");
