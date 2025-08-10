@@ -38,10 +38,14 @@ make
 export LD_LIBRARY_PATH=/usr/local/cuda-13.0/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
 ```
 
+Make sure the path to your `internal/gpu` dir is correct here:
+```
+export LD_LIBRARY_PATH=/home/kyle/dev/github.com/kvitebjorn/gol/internal/gpu:$LD_LIBRARY_PATH
+```
+
 ```
 export CGO_LDFLAGS="-L/usr/local/cuda-13.0/targets/x86_64-linux/lib -lcudart"
 ```
-
 ```
 go build
 ```
