@@ -16,7 +16,7 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 ![Screenshot](assets/gol.png)
 
 ## Automatic GPU detection
-`gol` automatically detects an NVIDIA GPU at runtime:
+`gol` detects an NVIDIA GPU at runtime:
 
 - If an NVIDIA driver + at least one CUDA-capable GPU is present, GPU mode is used.
 - Otherwise, CPU mode is used.
@@ -25,11 +25,10 @@ This project is a high-performance implementation of Conway's Game of Life in Go
 go build
 ```
 
-If you want to build a version that links CUDA at compile time for maximum performance:
+If you have CUDA installed, you need to export LD_LIBRARY_PATH before building
 
 ```
-CGO_ENABLED=1 go build -tags cuda \
-  -ldflags '-extldflags "-L/path/to/cuda/lib -lcudart -lcuda"'
+export LD_LIBRARY_PATH=/home/kyle/dev/github.com/kvitebjorn/gol/internal/gpu:$LD_LIBRARY_PATH
 ```
 
 This requires the CUDA toolkit and dev libraries installed. See the `gpu` package README for further details.
