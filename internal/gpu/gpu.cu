@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <cuda.h>
+#include "cudart_loader.h"
 
 // Device (kernel)
 __global__ void square_cuda(float *a, int N)
@@ -64,10 +65,10 @@ extern "C"
     size_t size = N * sizeof(float);
 
     // Allocate memory on the GPU
-    cudaMalloc((void **)&a_d, size);
+    cudaMalloc_wrap((void **)&a_d, size);
 
     // Copy the input data from CPU memory to GPU memory
-    cudaMemcpy(a_d, a, size, cudaMemcpyHostToDevice);
+    cudaMemcpy_wrap(a_d, a, size, cudaMemcpyHostToDevice);
 
     // Launch the GPU kernel to do work
     int block_size = 4;
@@ -75,10 +76,10 @@ extern "C"
     square_cuda<<<n_blocks, block_size>>>(a_d, N);
 
     // Copy the result data from GPU memory back to our CPU memory
-    cudaMemcpy(a, a_d, size, cudaMemcpyDeviceToHost);
+    cudaMemcpy_wrap(a, a_d, size, cudaMemcpyDeviceToHost);
 
     // Free the GPU memory
-    cudaFree(a_d);
+    cudaFree_wrap(a_d);
   }
 
   // Host driver - implements gpu.h `tick`
@@ -95,27 +96,27 @@ extern "C"
     cudaError_t err;
 
     // Allocate memory on the device for src & dst
-    err = cudaMalloc((void **)&src_d, bytes);
+    err = cudaMalloc_wrap((void **)&src_d, bytes);
     if (err != cudaSuccess)
     {
-      fprintf(stderr, "cudaMalloc src failed: %s\n", cudaGetErrorString(err));
+      fprintf(stderr, "cudaMalloc src failed: %s\n", cudaGetErrorString_wrap(err));
       return;
     }
-    err = cudaMalloc((void **)&dst_d, bytes);
+    err = cudaMalloc_wrap((void **)&dst_d, bytes);
     if (err != cudaSuccess)
     {
-      fprintf(stderr, "cudaMalloc dst failed: %s\n", cudaGetErrorString(err));
-      cudaFree(src_d);
+      fprintf(stderr, "cudaMalloc dst failed: %s\n", cudaGetErrorString_wrap(err));
+      cudaFree_wrap(src_d);
       return;
     }
 
     // Copy values to the device for src
-    err = cudaMemcpy(src_d, src, bytes, cudaMemcpyHostToDevice);
+    err = cudaMemcpy_wrap(src_d, src, bytes, cudaMemcpyHostToDevice);
     if (err != cudaSuccess)
     {
-      fprintf(stderr, "cudaMemcpy to device failed: %s\n", cudaGetErrorString(err));
-      cudaFree(src_d);
-      cudaFree(dst_d);
+      fprintf(stderr, "cudaMemcpy to device failed: %s\n", cudaGetErrorString_wrap(err));
+      cudaFree_wrap(src_d);
+      cudaFree_wrap(dst_d);
       return;
     }
 
@@ -124,16 +125,16 @@ extern "C"
     int n_blocks = (int)((n + block_size - 1) / block_size);
 
     tick_cuda<<<n_blocks, block_size>>>(src_d, dst_d, rows, cols);
-    cudaDeviceSynchronize();
+    cudaDeviceSynchronize_wrap();
 
     // Copy the device dst to our host
-    err = cudaMemcpy(dst, dst_d, bytes, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy_wrap(dst, dst_d, bytes, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess)
     {
-      fprintf(stderr, "cudaMemcpy to host failed: %s\n", cudaGetErrorString(err));
+      fprintf(stderr, "cudaMemcpy to host failed: %s\n", cudaGetErrorString_wrap(err));
     }
 
-    cudaFree(src_d);
-    cudaFree(dst_d);
+    cudaFree_wrap(src_d);
+    cudaFree_wrap(dst_d);
   }
 }
